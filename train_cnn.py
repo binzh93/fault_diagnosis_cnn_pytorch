@@ -6,31 +6,32 @@ import torch.optim as optim
 import numpy as np
 import torchvision
 from torchvision import datasets, models, transforms
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import time
 import os
 import copy
+import torch.utils.data as Data
+from my_data_loader import MyDataLoader
+
 print("PyTorch Version: ",torch.__version__)
 print("Torchvision Version: ",torchvision.__version__)
 
 
-data_dir = "./data/hymenoptera_data"
-
 # Models to choose from [resnet, alexnet, vgg, squeezenet, densenet, inception]
-model_name = "squeezenet"
+# model_name = "squeezenet"
+model_name = "resnet"
+model_name = "vgg16"
 
-num_classes = 2
+num_classes = 4
 
-batch_size = 8
-
-num_epochs = 20
+num_epochs = 30
 
 # Flag for feature extracting. When False, we finetune the whole model, 
 #   when True we only update the reshaped layer params
 feature_extract = False
 
 
-def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_inception=False):
+def train_model(model, dataloaders, criterion, optimizer, num_epochs=25):
     since = time.time()
 
     val_acc_history = []
@@ -39,7 +40,7 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
     best_acc = 0.0
 
     for epoch in range(num_epochs):
-        print('Epoch {}/{}'.format(epoch, num_epochs - 1))
+        print('Epoch {}/{}'.format(epoch+1, num_epochs))
         print('-' * 10)
 
         # Each epoch has a training and validation phase
@@ -56,6 +57,8 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
             for inputs, labels in dataloaders[phase]:
                 inputs = inputs.to(device)
                 labels = labels.to(device)
+#                 print(inputs.shape)
+#                 print(labels.shape)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -67,15 +70,8 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
                     # Special case for inception because in training it has an auxiliary output. In train
                     #   mode we calculate the loss by summing the final output and the auxiliary output
                     #   but in testing we only consider the final output.
-                    if is_inception and phase == 'train':
-                        # From https://discuss.pytorch.org/t/how-to-optimize-inception-model-with-auxiliary-classifiers/7958
-                        outputs, aux_outputs = model(inputs)
-                        loss1 = criterion(outputs, labels)
-                        loss2 = criterion(aux_outputs, labels)
-                        loss = loss1 + 0.4*loss2
-                    else:
-                        outputs = model(inputs)
-                        loss = criterion(outputs, labels)
+                    outputs = model(inputs)
+                    loss = criterion(outputs, labels)
 
                     _, preds = torch.max(outputs, 1)
 
@@ -100,6 +96,9 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
             if phase == 'val':
                 val_acc_history.append(epoch_acc)
 
+        print("save model...")
+        model_save_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/model/"+ model_name + "_" + str(epoch+1) + ".pth"
+        torch.save(model, model_save_path)
         print()
 
     time_elapsed = time.time() - since
@@ -149,6 +148,23 @@ def initialize_model(model_name, num_classes, feature_extract, use_pretrained=Tr
         num_ftrs = model_ft.classifier[6].in_features
         model_ft.classifier[6] = nn.Linear(num_ftrs,num_classes)
         input_size = 224
+    elif model_name == "vgg16":
+        """ VGG16
+        """
+        model_ft = models.vgg16(pretrained=use_pretrained)
+        set_parameter_requires_grad(model_ft, feature_extract)
+        num_ftrs = model_ft.classifier[6].in_features
+        model_ft.classifier[6] = nn.Linear(num_ftrs,num_classes)
+        input_size = 224
+    elif model_name == "squeezenet":
+        """ Squeezenet
+        """
+        model_ft = models.squeezenet1_0(pretrained=use_pretrained)
+        set_parameter_requires_grad(model_ft, feature_extract)
+        model_ft.classifier[1] = nn.Conv2d(512, num_classes, kernel_size=(1,1), stride=(1,1))
+        model_ft.num_classes = num_classes
+        input_size = 224
+
     else:
         print("Invalid model name, exiting...")
         exit()
@@ -174,14 +190,14 @@ print(model_ft)
 
 data_transforms = {
     'train': transforms.Compose([
-        transforms.Resize(input_size),
+        transforms.Resize((input_size, input_size)),
         # transforms.RandomResizedCrop(input_size),
         # transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
     'val': transforms.Compose([
-        transforms.Resize(input_size),
+        transforms.Resize((input_size, input_size)),
         # transforms.CenterCrop(input_size),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -190,10 +206,30 @@ data_transforms = {
 
 print("Initializing Datasets and Dataloaders...")
 
-# Create training and validation datasets
-image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x]) for x in ['train', 'val']}
-# Create training and validation dataloaders
-dataloaders_dict = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True, num_workers=4) for x in ['train', 'val']}
+# # Create training and validation datasets
+# image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x]) for x in ['train', 'val']}
+# # Create training and validation dataloaders
+# dataloaders_dict = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True, num_workers=4) for x in ['train', 'val']}
+
+img_root_dir = ""
+train_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/jiangnan_train_data_file/train.txt"
+val_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/jiangnan_train_data_file/val.txt"
+
+train_batch_size = 72
+test_batch_size = 10
+train_dataset = MyDataLoader(img_root=img_root_dir, txt_file=train_txt_path, transforms=data_transforms["train"])
+train_dataloader = Data.DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
+
+test_dataset = MyDataLoader(img_root=img_root_dir, txt_file=val_txt_path, transforms=data_transforms["val"])
+test_dataloader = Data.DataLoader(test_dataset, batch_size=test_batch_size, shuffle=True)
+
+
+data_loader = {"train": train_dataloader, "val": test_dataloader}
+
+
+
+
+
 
 # Detect if we have a GPU available
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -227,4 +263,6 @@ optimizer_ft = optim.SGD(params_to_update, lr=0.001, momentum=0.9)
 criterion = nn.CrossEntropyLoss()
 
 # Train and evaluate
-model_ft, hist = train_model(model_ft, dataloaders_dict, criterion, optimizer_ft, num_epochs=num_epochs, is_inception=(model_name=="inception"))
+model_ft, hist = train_model(model_ft, data_loader, criterion, optimizer_ft, num_epochs=num_epochs)
+
+
