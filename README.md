@@ -13,7 +13,9 @@ python data_pro/split_train_val_test.py
 
 $$ step 4
 train and validation
+python train_cnn.py
 
 $$ step 5
 test
+python predict.py
 ```
