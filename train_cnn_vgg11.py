@@ -167,16 +167,16 @@ print("Initializing Datasets and Dataloaders...")
 isCaseW = False
 if isCaseW:
     img_root_dir = ""
-    train_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/CaseW_train_data_file_1/train.txt"
-    val_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/CaseW_train_data_file_1/val.txt"
+    train_txt_path = "/workspace/mnt/group/face1/zhubin/alg_code/fault_diagnosis_cnn_pytorch/CaseW_train_data_file_1/train.txt"
+    val_txt_path = "/workspace/mnt/group/face1/zhubin/alg_code/fault_diagnosis_cnn_pytorch/CaseW_train_data_file_1/val.txt"
     train_batch_size = 75
     test_batch_size = 10
     num_calsses = 10
     # lr = 0.1  weight_decay=0.0005
 else:
     img_root_dir = ""
-    train_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/jiangnan_train_data_file_1/train.txt"
-    val_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/jiangnan_train_data_file_1/val.txt"
+    train_txt_path = "/workspace/mnt/group/face1/zhubin/alg_code/fault_diagnosis_cnn_pytorch/jiangnan_train_data_file_1/train.txt"
+    val_txt_path = "/workspace/mnt/group/face1/zhubin/alg_code/fault_diagnosis_cnn_pytorch/jiangnan_train_data_file_1/val.txt"
     train_batch_size = 72
     test_batch_size = 10
     num_calsses = 4
