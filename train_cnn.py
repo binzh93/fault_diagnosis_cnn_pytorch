@@ -20,11 +20,12 @@ print("Torchvision Version: ",torchvision.__version__)
 # Models to choose from [resnet, alexnet, vgg, squeezenet, densenet, inception]
 # model_name = "squeezenet"
 model_name = "resnet"
-model_name = "vgg16"
+# model_name = "vgg16"
+# model_name = "alexnet"
 
-num_classes = 4
+num_classes = 10
 
-num_epochs = 30
+num_epochs = 50
 
 # Flag for feature extracting. When False, we finetune the whole model, 
 #   when True we only update the reshaped layer params
@@ -123,9 +124,9 @@ def initialize_model(model_name, num_classes, feature_extract, use_pretrained=Tr
     input_size = 0
 
     if model_name == "resnet":
-        """ Resnet18
+        """ Resnet34
         """
-        model_ft = models.resnet18(pretrained=use_pretrained)
+        model_ft = models.resnet34(pretrained=use_pretrained)
         set_parameter_requires_grad(model_ft, feature_extract)
         num_ftrs = model_ft.fc.in_features
         model_ft.fc = nn.Linear(num_ftrs, num_classes)
@@ -171,11 +172,7 @@ def initialize_model(model_name, num_classes, feature_extract, use_pretrained=Tr
     
     return model_ft, input_size
 
-# Initialize the model for this run
-model_ft, input_size = initialize_model(model_name, num_classes, feature_extract, use_pretrained=True)
 
-# Print the model we just instantiated
-print(model_ft) 
 
 
 ######################################################################
@@ -190,14 +187,14 @@ print(model_ft)
 
 data_transforms = {
     'train': transforms.Compose([
-        transforms.Resize((input_size, input_size)),
+        transforms.Resize((224, 224)),
         # transforms.RandomResizedCrop(input_size),
         # transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
     'val': transforms.Compose([
-        transforms.Resize((input_size, input_size)),
+        transforms.Resize((224, 224)),
         # transforms.CenterCrop(input_size),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -211,16 +208,46 @@ print("Initializing Datasets and Dataloaders...")
 # # Create training and validation dataloaders
 # dataloaders_dict = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True, num_workers=4) for x in ['train', 'val']}
 
-img_root_dir = ""
-train_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/jiangnan_train_data_file/train.txt"
-val_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/jiangnan_train_data_file/val.txt"
+# img_root_dir = ""
+# train_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/jiangnan_train_data_file/train.txt"
+# val_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/jiangnan_train_data_file/val.txt"
 
-train_batch_size = 72
-test_batch_size = 10
-train_dataset = MyDataLoader(img_root=img_root_dir, txt_file=train_txt_path, transforms=data_transforms["train"])
+# train_batch_size = 72
+# test_batch_size = 10
+# train_dataset = MyDataLoader(img_root=img_root_dir, txt_file=train_txt_path, transforms=data_transforms["train"])
+# train_dataloader = Data.DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
+
+# test_dataset = MyDataLoader(img_root=img_root_dir, txt_file=val_txt_path, transforms=data_transforms["val"])
+# test_dataloader = Data.DataLoader(test_dataset, batch_size=test_batch_size, shuffle=True)
+
+
+# num_classes = 0
+
+isCaseW = True
+# isCaseW = False
+if isCaseW:
+    img_root_dir = ""
+    train_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/CaseW_train_data_file_9/train.txt"
+    val_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/CaseW_train_data_file_9/val.txt"
+    train_batch_size = 75
+    test_batch_size = 10
+#     num_calsses = 10
+# #     print(num_calsses)
+    # lr = 0.1  weight_decay=0.0005
+else:
+    img_root_dir = ""
+    train_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/jiangnan_train_data_file_9/train.txt"
+    val_txt_path = "/workspace/mnt/group/face/zhubin/alg_code/fault_diagnosis_cnn_pytorch/jiangnan_train_data_file_9/val.txt"
+    train_batch_size = 72
+    test_batch_size = 10
+#     num_calsses = 4
+#     print(num_calsses)
+    # lr = 0.1  weight_decay=0.0005
+
+train_dataset = MyDataLoader(img_root=img_root_dir, txt_file=train_txt_path, transforms=data_transforms["train"], isCaseW=isCaseW)
 train_dataloader = Data.DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
 
-test_dataset = MyDataLoader(img_root=img_root_dir, txt_file=val_txt_path, transforms=data_transforms["val"])
+test_dataset = MyDataLoader(img_root=img_root_dir, txt_file=val_txt_path, transforms=data_transforms["val"], isCaseW=isCaseW)
 test_dataloader = Data.DataLoader(test_dataset, batch_size=test_batch_size, shuffle=True)
 
 
@@ -228,7 +255,11 @@ data_loader = {"train": train_dataloader, "val": test_dataloader}
 
 
 
+# Initialize the model for this run
+model_ft, input_size = initialize_model(model_name, num_classes=num_classes, feature_extract=False, use_pretrained=True)
 
+# Print the model we just instantiated
+print(model_ft) 
 
 
 # Detect if we have a GPU available
@@ -256,7 +287,7 @@ else:
             print("\t",name)
 
 # Observe that all parameters are being optimized
-optimizer_ft = optim.SGD(params_to_update, lr=0.001, momentum=0.9)
+optimizer_ft = optim.SGD(params_to_update, lr=0.01, momentum=0.9)
 
 
 # Setup the loss fxn
